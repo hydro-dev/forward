@@ -2,17 +2,18 @@ import { exec } from 'child_process';
 import { Resolver } from 'dns/promises';
 import { Counter, Logger } from '@hydrooj/utils';
 
+const local = '192.168.99.5:2333';
 const resolver = new Resolver();
 resolver.setServers(['114.114.114.114', '8.8.8.8']);
 const logger = new Logger('proxy');
 const fails = Counter();
 function createProxy(target: string, targetPort: string) {
     logger.info('Proxy to', target);
-    const child = exec(`ssh -R 0.0.0.0:${targetPort}:127.0.0.1:2333 root@${target}.hydro.ac`);
+    const child = exec(`ssh -R 0.0.0.0:${targetPort}:${local} root@${target}.hydro.ac`);
     child.stderr!.on('data', (data) => {
         if (!data.toString().includes('remote port forwarding failed for listen port')) return;
         logger.info(`Kill old ssh process on ${target}`);
-        child.stdin!.write('fuser -k 2333/tcp\n');
+        child.stdin!.write(`fuser -k ${targetPort}/tcp\n`);
     });
     let token = '';
     child.stdout!.on('data', (data) => {
@@ -24,9 +25,9 @@ function createProxy(target: string, targetPort: string) {
         }
         if (s.includes('fuser') && s.includes('command not found')) {
             logger.info(`Installing fuser on ${target}`);
-            child.stdin!.write('apt-get update && apt-get install fuser -y -q\nfuser -k 2333/tcp');
+            child.stdin!.write(`apt-get update && apt-get install fuser -y -q\nfuser -k ${targetPort}/tcp`);
         }
-        if (s.startsWith('2333/tcp:')) child.kill();
+        if (s.startsWith(`${targetPort}/tcp:`)) child.kill();
     });
     const interval = setInterval(() => {
         if (token) child.kill();
@@ -50,4 +51,5 @@ async function main() {
     console.log(aliases);
     for (const r of aliases) createProxy(r, process.argv[2]);
 }
-main();
+if (!process.argv[2]) logger.error('port required');
+else main();
