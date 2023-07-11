@@ -2,7 +2,7 @@ import { exec } from 'child_process';
 import { Resolver } from 'dns/promises';
 import { Counter, Logger } from '@hydrooj/utils';
 
-const local = '192.168.99.5:2333';
+const local = '192.168.99.1:2333';
 const resolver = new Resolver();
 resolver.setServers(['114.114.114.114', '8.8.8.8']);
 const logger = new Logger('proxy');
