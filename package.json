@@ -1,0 +1,15 @@
+{
+  "name": "forward",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node -r @hydrooj/utils/lib/register index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.1"
+  },
+  "dependencies": {
+    "@hydrooj/utils": "^1.4.13"
+  }
+}
