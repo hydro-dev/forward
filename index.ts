@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { Resolver } from 'dns/promises';
-import { Counter, Logger } from '@hydrooj/utils';
+import { Counter, fs, Logger } from '@hydrooj/utils';
 
 const resolver = new Resolver();
 resolver.setServers(['114.114.114.114', '8.8.8.8']);
@@ -51,20 +51,20 @@ function createProxy(target: string, targetPort: string, local: string) {
     }
 }
 
-function initAllProxy(target: string) {
-    const tasks = process.argv[2].split(',');
+function initAllProxy(expr:string, target: string) {
+    const tasks = expr.split(',');
     for (const task of tasks) {
         const [l, r] = task.split('->');
         createProxy(target, l, r);
     }
 }
 
-async function main() {
+async function main(expr: string) {
     const map = {};
     const [[result]] = await resolver.resolveTxt('alias.hydro.ac');
     let aliases = result.split(' ').filter(i => i);
     console.log(aliases);
-    for (const r of aliases) map[r] = initAllProxy(r);
+    for (const r of aliases) map[r] = initAllProxy(expr, r);
     setInterval(async () => {
         try {
             const [[result]] = await resolver.resolveTxt('alias.hydro.ac');
@@ -72,7 +72,7 @@ async function main() {
             console.log(newAliases);
             for (const r of newAliases) {
                 if (map[r]) continue;
-                map[r] = initAllProxy(r);
+                map[r] = initAllProxy(expr, r);
                 logger.info('New alias', r);
             }
             for (const r of aliases) {
@@ -87,5 +87,7 @@ async function main() {
         }
     }, 60000);
 }
-if (!process.argv[2]) logger.error('Usage: forward 2333->192.168.1.1:2333,2334->192.168.1.1:2444 (remote->local)');
-else main();
+
+const alt = fs.existsSync('config') ? fs.readFileSync('config', 'utf-8') : '';
+if (!process.argv[2] && !alt) logger.error("Usage: forward '2333->192.168.1.1:2333,2334->192.168.1.1:2444' (remote->local)");
+else main(process.argv[2] || alt);
