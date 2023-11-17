@@ -53,7 +53,7 @@ function createProxy(target: string, targetPort: string, local: string) {
 
 function initAllProxy(target: string) {
     const tasks = process.argv[2].split(',');
-    for (const tasks of tasks) {
+    for (const task of tasks) {
         const [l, r] = task.split('->');
         createProxy(target, l, r);
     }
