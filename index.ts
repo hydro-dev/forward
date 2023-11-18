@@ -51,11 +51,15 @@ function createProxy(target: string, targetPort: string, local: string) {
     }
 }
 
-function initAllProxy(expr:string, target: string) {
+function initAllProxy(expr: string, target: string) {
     const tasks = expr.split(',');
+    const clean: (() => void)[] = [];
     for (const task of tasks) {
         const [l, r] = task.split('->');
-        createProxy(target, l, r);
+        clean.push(createProxy(target, l, r));
+    }
+    return () => {
+        for (const f of clean) f();
     }
 }
 
