@@ -10,8 +10,9 @@ function createProxy(target: string, targetPort: string, local: string) {
     const identifer = target + ':' + targetPort;
     let stop = false;
     logger.info('Proxy to', identifer);
-    const child = exec(`ssh -R 127.0.0.1:${targetPort}:${local} root@${target}.hydro.ac`);
+    const child = exec(`ssh -tt -R 127.0.0.1:${targetPort}:${local} root@${target}.hydro.ac`);
     child.stderr!.on('data', (data) => {
+        console.log(target + '/' + targetPort + ':' + data.toString());
         if (!data.toString().includes('remote port forwarding failed for listen port')) return;
         logger.info(`Kill old ssh process on ${identifer}`);
         child.stdin!.write(`fuser -k ${targetPort}/tcp\n`);
@@ -19,6 +20,7 @@ function createProxy(target: string, targetPort: string, local: string) {
     let token = '';
     child.stdout!.on('data', (data) => {
         const s = data.toString();
+        console.log(target + '/' + targetPort + ':' + s);
         if (s.includes(token)) token = '';
         if (s.includes('Welcome')) {
             fails[identifer] = 0;
@@ -64,6 +66,7 @@ function initAllProxy(expr: string, target: string) {
 }
 
 async function main(expr: string) {
+    expr = expr.trim();
     const map = {};
     const [[result]] = await resolver.resolveTxt('alias.hydro.ac');
     let aliases = result.split(' ').filter(i => i);
