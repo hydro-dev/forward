@@ -11,32 +11,42 @@ function createProxy(target: string, targetPort: string, local: string) {
     let stop = false;
     logger.info('Proxy to', identifer);
     const child = exec(`ssh -tt -R 127.0.0.1:${targetPort}:${local} root@${target}.hydro.ac`);
-    child.stderr!.on('data', (data) => {
-        console.log(target + '/' + targetPort + ':' + data.toString());
-        if (!data.toString().includes('remote port forwarding failed for listen port')) return;
-        logger.info(`Kill old ssh process on ${identifer}`);
-        child.stdin!.write(`fuser -k ${targetPort}/tcp\n`);
-    });
+
     let token = '';
-    child.stdout!.on('data', (data) => {
-        const s = data.toString();
-        console.log(target + '/' + targetPort + ':' + s);
-        if (s.includes(token)) token = '';
-        if (s.includes('Welcome')) {
+    function onLineReceived(data: string) {
+        console.log(target + '/' + targetPort + ':' + data);
+        if (data.includes(token)) token = '';
+        if (data.includes('remote port forwarding failed for listen port')) {
+            logger.info(`Kill old ssh process on ${identifer}`);
+            child.stdin!.write(`fuser -k ${targetPort}/tcp\n`);
+            setTimeout(() => child.kill(), 500);
+        }
+        if (data.includes('Welcome')) {
             fails[identifer] = 0;
             logger.success(`Connected to ${identifer}`);
         }
-        if (s.includes('fuser') && s.includes('command not found')) {
+        if (data.includes('fuser') && data.includes('command not found')) {
             logger.info(`Installing fuser on ${target}`);
             child.stdin!.write(`apt-get update && apt-get install fuser -y -q\nfuser -k ${targetPort}/tcp`);
         }
-        if (s.startsWith(`${targetPort}/tcp:`)) child.kill();
+        if (data.includes(`${targetPort}/tcp:`)) child.kill();
+        if (data.startsWith('count 0')) child.kill();
+    }
+
+    child.stderr!.on('data', (data) => {
+        const lines = data.toString().split('\n').map((i) => i.trim()).filter((i) => i);
+        for (const line of lines) onLineReceived(line);
+    });
+    child.stdout!.on('data', (data) => {
+        const lines = data.toString().split('\n').map((i) => i.trim()).filter((i) => i);
+        for (const line of lines) onLineReceived(line);
     });
     const interval = setInterval(() => {
         if (token) child.kill();
         else {
             token = Math.random().toString();
             child.stdin!.write(`echo ${token}\n`);
+            child.stdin!.write(`echo count $(fuser ${targetPort}/tcp | wc -l)\n`);
         }
     }, 60000);
     child.on('exit', (code, signal) => {
