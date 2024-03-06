@@ -25,28 +25,20 @@ function createProxy(target: string, targetPort: string, local: string) {
             fails[identifer] = 0;
             logger.success(`Connected to ${identifer}`);
         }
-        if (data.includes('fuser') && data.includes('command not found')) {
-            logger.info(`Installing fuser on ${target}`);
-            child.stdin!.write(`apt-get update && apt-get install fuser -y -q\nfuser -k ${targetPort}/tcp`);
-        }
-        if (data.includes(`${targetPort}/tcp:`)) child.kill();
-        if (data.startsWith('count 0')) child.kill();
+        if (data.startsWith('count 0')) child.kill(); // nothing listening on port
     }
 
-    child.stderr!.on('data', (data) => {
+    function ondata(data: any) {
         const lines = data.toString().split('\n').map((i) => i.trim()).filter((i) => i);
         for (const line of lines) onLineReceived(line);
-    });
-    child.stdout!.on('data', (data) => {
-        const lines = data.toString().split('\n').map((i) => i.trim()).filter((i) => i);
-        for (const line of lines) onLineReceived(line);
-    });
+    }
+    child.stderr!.on('data', ondata);
+    child.stdout!.on('data', ondata);
     const interval = setInterval(() => {
         if (token) child.kill();
         else {
             token = Math.random().toString();
-            child.stdin!.write(`echo ${token}\n`);
-            child.stdin!.write(`echo count $(fuser ${targetPort}/tcp | wc -l)\n`);
+            child.stdin!.write(`echo count $(fuser ${targetPort}/tcp | wc -l) ${token}\n`);
         }
     }, 60000);
     child.on('exit', (code, signal) => {
