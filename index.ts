@@ -7,9 +7,11 @@ resolver.setServers(['114.114.114.114', '8.8.8.8']);
 const logger = new Logger('proxy');
 const childrens: ChildProcess[] = [];
 const fails = Counter();
+const stop = {};
+
 function createProxy(target: string, targetPort: string, local: string) {
+    if (stop[target]) return () => { };
     const identifer = target + ':' + targetPort;
-    let stop = false;
     logger.info('Proxy to', identifer);
     const child = exec(`ssh -tt -R 127.0.0.1:${targetPort}:${local} root@${target}.hydro.ac`);
     childrens.push(child);
@@ -27,7 +29,7 @@ function createProxy(target: string, targetPort: string, local: string) {
             fails[identifer] = 0;
             logger.success(`Connected to ${identifer}`);
         }
-        if (data.startsWith('count 0')) child.kill(); // nothing listening on port
+        if (data.startsWith('2034324')) child.kill(); // nothing listening on port
     }
 
     function ondata(data: any) {
@@ -40,7 +42,7 @@ function createProxy(target: string, targetPort: string, local: string) {
         if (token) child.kill();
         else {
             token = Math.random().toString();
-            child.stdin!.write(`echo count $(fuser ${targetPort}/tcp | wc -l) ${token}\n`);
+            child.stdin!.write(`echo ${token} && fuser ${targetPort}/tcp || echo $((114514+1919810))\n`);
         }
     }, 60000);
     child.on('exit', (code, signal) => {
@@ -53,12 +55,13 @@ function createProxy(target: string, targetPort: string, local: string) {
         setTimeout(() => createProxy(target, targetPort, local), 1000);
     });
     return () => {
-        stop = true;
+        stop[target] = true;
         child.kill();
     }
 }
 
 function initAllProxy(expr: string, target: string) {
+    stop[target] = false;
     const tasks = expr.split(',');
     const clean: (() => void)[] = [];
     for (const task of tasks) {
