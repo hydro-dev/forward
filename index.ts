@@ -13,7 +13,7 @@ function createProxy(target: string, targetPort: string, local: string) {
     if (stop[target]) return () => { };
     const identifer = target + ':' + targetPort;
     logger.info('Proxy to', identifer);
-    const child = exec(`ssh -tt -R 127.0.0.1:${targetPort}:${local} root@${target}.hydro.ac`);
+    const child = exec(`ssh -tt -o StrictHostKeyChecking=accept-new -R 127.0.0.1:${targetPort}:${local} root@${target}.hydro.ac`);
     childrens.push(child);
 
     let token = '';
