@@ -46,7 +46,7 @@ function createProxy(target: string, targetPort: string, local: string) {
         }
     }, 60000);
     child.on('exit', (code, signal) => {
-        if (stop) return;
+        if (stop[target]) return;
         if (fails[identifer] % 10 === 9) global.sendMessage?.(`Proxy to ${identifer} failed after 10 retries.`);
         fails[identifer]++;
         childrens.splice(childrens.indexOf(child), 1);
